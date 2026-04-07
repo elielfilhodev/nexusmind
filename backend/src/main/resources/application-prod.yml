@@ -1,0 +1,23 @@
+server:
+  error:
+    include-stacktrace: never
+    include-message: on_param
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: strict
+
+spring:
+  jpa:
+    show-sql: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.nexusmind: INFO

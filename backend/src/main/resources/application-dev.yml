@@ -1,0 +1,16 @@
+server:
+  error:
+    include-stacktrace: always
+
+spring:
+  jpa:
+    show-sql: false
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.nexusmind.infrastructure.ai: DEBUG
