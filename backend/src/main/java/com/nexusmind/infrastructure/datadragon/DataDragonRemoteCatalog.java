@@ -32,6 +32,11 @@ public class DataDragonRemoteCatalog {
             .expireAfterWrite(Duration.ofHours(8))
             .build();
 
+    private final Cache<String, String> championKeyByPatchAndNumericId = Caffeine.newBuilder()
+            .maximumSize(2048)
+            .expireAfterWrite(Duration.ofHours(8))
+            .build();
+
     private final RestClient restClient = RestClient.builder()
             .baseUrl("https://ddragon.leagueoflegends.com")
             .build();
@@ -41,8 +46,58 @@ public class DataDragonRemoteCatalog {
     }
 
     /**
-     * Lista "id:nome" de todos os campeões do patch, para contexto em prompts.
+     * Resolve o {@code id} de arquivo do campeão (ex.: Aatrox) a partir do id numérico da API (ex.: 266).
      */
+    public Optional<String> resolveChampionKeyByNumericId(String patchVersion, int numericChampionId) {
+        if (patchVersion == null || patchVersion.isBlank()) {
+            return Optional.empty();
+        }
+        String cacheKey = patchVersion + ":" + numericChampionId;
+        String hit = championKeyByPatchAndNumericId.getIfPresent(cacheKey);
+        if (hit != null) {
+            return hit.isEmpty() ? Optional.empty() : Optional.of(hit);
+        }
+        Optional<String> resolved = resolveFromChampionJson(patchVersion, numericChampionId);
+        if (resolved.isPresent()) {
+            championKeyByPatchAndNumericId.put(cacheKey, resolved.get());
+        } else {
+            String latest = fetchLatestDdragonVersion();
+            if (latest != null && !latest.equals(patchVersion)) {
+                resolved = resolveFromChampionJson(latest, numericChampionId);
+            }
+            championKeyByPatchAndNumericId.put(cacheKey, resolved.orElse(""));
+        }
+        return resolved;
+    }
+
+    private Optional<String> resolveFromChampionJson(String cdnVersion, int numericChampionId) {
+        try {
+            String body = restClient.get()
+                    .uri("/cdn/{v}/data/en_US/champion.json", cdnVersion)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+            if (body == null || body.isBlank()) {
+                return Optional.empty();
+            }
+            JsonNode data = objectMapper.readTree(body).path("data");
+            if (!data.isObject()) {
+                return Optional.empty();
+            }
+            var fields = data.fields();
+            while (fields.hasNext()) {
+                var e = fields.next();
+                JsonNode c = e.getValue();
+                if (c.path("key").asInt(0) == numericChampionId) {
+                    return Optional.of(c.path("id").asText(""));
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("resolve champion key falhou: {}", ex.getMessage());
+        }
+        return Optional.empty();
+    }
+
     public Optional<String> getChampionSnippet(String patchVersion) {
         if (patchVersion == null || patchVersion.isBlank()) {
             return Optional.empty();

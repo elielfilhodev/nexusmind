@@ -20,3 +20,6 @@ app:
     allowed-origins: http://localhost:3000
   rate-limit:
     per-minute: 1000
+    competitive-per-minute: 1000
+  riot:
+    api-key: ""

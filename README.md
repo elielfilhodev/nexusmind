@@ -70,9 +70,35 @@ npm run dev
 
 - Validação Bean Validation nas entradas; corpo JSON limitado (~512KB).
 - Rate limit em `POST /api/analysis/*` por IP (header `X-Forwarded-For` quando atrás de proxy).
+- Rate limit separado para `GET/POST /api/leaderboard`, `/api/players`, `/api/matches` (módulo competitivo; `APP_COMPETITIVE_RATE_LIMIT_PER_MINUTE`).
 - CORS explícito; headers `X-Frame-Options: DENY`.
 - Logs sem vazar API keys; falhas de IA retornam fallback heurístico.
 - Para múltiplas instâncias da API: substituir o rate limit em memória por Redis ou gateway.
+
+## Módulo competitivo (Riot API)
+
+Tela dedicada em `/competitive/leaderboard` e perfis em `/competitive/player/{REGION}/{PUUID}` (ex.: `BR1`). O backend integra a **Riot API** com camada desacoplada (`RiotApiClient`, serviços de cache, rate limit interno e retries), **Caffeine** (`spring-boot-starter-cache`) para leaderboard, summoner, partidas e entradas de liga, e **PostgreSQL** para cache persistente de análises IA (`competitive_ai_cache`) e cadastro manual de **jogadores profissionais** (`pro_player`).
+
+**Variáveis:** `RIOT_API_KEY` (obrigatória para dados live), `APP_COMPETITIVE_RATE_LIMIT_PER_MINUTE` (proteção do endpoint), demais `RIOT_*` em `backend/.env.example`.
+
+**Limitações da Riot API:** não existe um “leaderboard global” público; usamos ligas **Challenger + Grandmaster** por fila (Solo/Flex). **Peak elo histórico por season** não é exposto de forma completa pela API — o perfil mostra snapshot atual de liga e agrega estatísticas por **temporada aproximada** (cortes de data) a partir do histórico de partidas.
+
+**Assets visuais:** ícones de campeão/itens/runas e splashes seguem o **Data Dragon** (`ddragon.leagueoflegends.com`); emblemas de elo usam o caminho público de tier do CDN. Atualize o patch no banco (`PATCH`) para alinhar versões do CDN com o app.
+
+### Rotas REST (competitivo)
+
+- `GET /api/leaderboard/regions`
+- `GET /api/leaderboard?region=BR1&queue=RANKED_SOLO_5x5&page=0&size=20&sort=LP_DESC&prosOnly=false`
+- `GET /api/players/search?gameName=&tagLine=&region=BR1`
+- `GET /api/players/{region}/{puuid}` — perfil agregado
+- `GET /api/players/{region}/{puuid}/seasons`
+- `GET /api/players/{region}/{puuid}/matches?...` — filtros: `season`, `championId`, `queueId`, `outcome`
+- `GET /api/players/{region}/{puuid}/champions` | `/peak-ranks`
+- `GET /api/matches/{matchId}?region=&puuid=`
+- `POST /api/matches/{matchId}/ai-analysis?region=&puuid=`
+- `POST /api/players/{region}/{puuid}/ai-analysis`
+
+Documentação interativa: **Swagger** em `/swagger-ui/index.html`.
 
 ## API (principais rotas)
 

@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.nexusmind.infrastructure.riot.RiotApiException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +40,19 @@ public class ApiExceptionHandler {
                 "error", "BAD_JSON",
                 "message", "Corpo da requisição inválido"
         ));
+    }
+
+    @ExceptionHandler(RiotApiException.class)
+    public ResponseEntity<Map<String, Object>> riot(RiotApiException ex) {
+        HttpStatus status = HttpStatus.resolve(ex.status());
+        HttpStatus st = status != null ? status : HttpStatus.BAD_GATEWAY;
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "RIOT");
+        body.put("message", ex.getMessage());
+        if (ex.riotErrorCode() != null) {
+            body.put("riotErrorCode", ex.riotErrorCode());
+        }
+        return ResponseEntity.status(st).body(body);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

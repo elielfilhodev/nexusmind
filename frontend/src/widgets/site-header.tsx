@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/casual", label: "Solo Queue" },
   { href: "/professional", label: "Draft Pro" },
+  { href: "/competitive/leaderboard", label: "Competitivo" },
   { href: "/reports", label: "Relatórios" },
   { href: "/items", label: "Itens" },
   { href: "/runes", label: "Runas" },

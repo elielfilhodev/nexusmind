@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, Shield } from "lucide-react";
+import { ArrowRight, BarChart3, Crown, Shield } from "lucide-react";
 import { SiteHeader } from "@/widgets/site-header";
 import { SiteFooter } from "@/widgets/site-footer";
 import { buttonVariants } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export default function HomePage() {
         </section>
 
         <section className="border-y border-border/60 bg-muted/20 py-16">
-          <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-3">
             <Card className="border-border/80 bg-card/80">
               <CardHeader>
                 <Shield className="mb-2 size-8 text-primary" />
@@ -63,6 +63,21 @@ export default function HomePage() {
               <CardContent>
                 <Link href="/professional" className={cn(buttonVariants({ variant: "secondary" }))}>
                   Abrir draft analyzer
+                </Link>
+              </CardContent>
+            </Card>
+            <Card className="border-border/80 bg-card/80">
+              <CardHeader>
+                <Crown className="mb-2 size-8 text-amber-400" />
+                <CardTitle>Competitivo</CardTitle>
+                <CardDescription>
+                  Leaderboard regional, perfil com dados da Riot API, histórico de partidas e análises com IA para
+                  coach e scout.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link href="/competitive/leaderboard" className={cn(buttonVariants({ variant: "secondary" }))}>
+                  Abrir módulo competitivo
                 </Link>
               </CardContent>
             </Card>
