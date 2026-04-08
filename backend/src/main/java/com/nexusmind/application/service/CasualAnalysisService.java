@@ -70,7 +70,9 @@ public class CasualAnalysisService {
         JsonNode structured;
         String reason;
         if (raw.isBlank()) {
-            structured = fallbackFactory.casualFallback("IA indisponível ou API key ausente");
+            structured = fallbackFactory.casualFallback(
+                    "IA indisponível: resposta vazia (API key, limite ou 503 sobrecarga — tente gemini-2.0-flash ou aguarde)."
+            );
             reason = "fallback_empty_ai";
         } else {
             Optional<JsonNode> parsed = jsonExtractor.extract(raw);

@@ -74,7 +74,9 @@ public class DraftAnalysisService {
 
         JsonNode structured;
         if (raw.isBlank()) {
-            structured = fallbackFactory.draftFallback("IA indisponível ou API key ausente");
+            structured = fallbackFactory.draftFallback(
+                    "IA indisponível: resposta vazia (API key, limite do modelo ou 503 sobrecarga — tente outro modelo, ex. gemini-2.0-flash, ou aguarde)."
+            );
         } else {
             Optional<JsonNode> parsed = jsonExtractor.extract(raw);
             structured = parsed.map(n -> mergeMeta(n, objectMapper))

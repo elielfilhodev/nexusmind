@@ -82,16 +82,18 @@ public class OpenAiCompatibleAiProvider implements AiProvider {
                 }
                 return text;
             } catch (RestClientResponseException ex) {
+                int status = ex.getStatusCode().value();
                 String errBody = ex.getResponseBodyAsString();
                 log.warn(
                         "Erro HTTP da API de IA {} — {}. Corpo: {}",
-                        ex.getStatusCode().value(),
+                        status,
                         ex.getStatusText(),
                         errBody != null && errBody.length() > 800 ? errBody.substring(0, 800) + "…" : errBody
                 );
                 if (attempts >= max) {
                     return "";
                 }
+                backoffIfRateLimitedOrOverloaded(status, attempts);
             } catch (RestClientException ex) {
                 log.warn("Falha na chamada IA (tentativa {}/{}): {}", attempts, max, ex.getMessage());
                 if (attempts >= max) {
@@ -131,6 +133,20 @@ public class OpenAiCompatibleAiProvider implements AiProvider {
             log.debug("Resposta IA não-JSON ou formato inesperado");
         }
         return "";
+    }
+
+    /** 429 / 502 / 503: rate limit ou modelo sobrecarregado (comum no Gemini) — espera antes de retentar. */
+    private static void backoffIfRateLimitedOrOverloaded(int httpStatus, int attemptJustFinished) {
+        if (httpStatus != 429 && httpStatus != 502 && httpStatus != 503) {
+            return;
+        }
+        long ms = Math.min(12_000L, 600L * (1L << Math.min(attemptJustFinished - 1, 4)));
+        log.info("Aguardando {} ms antes de nova tentativa à API de IA (HTTP {})", ms, httpStatus);
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static String trimSlash(String url) {

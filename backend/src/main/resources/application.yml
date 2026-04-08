@@ -67,7 +67,8 @@ app:
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:google/gemma-2-9b-it:free}
     timeout-seconds: ${AI_TIMEOUT_SECONDS:90}
-    max-retries: ${AI_MAX_RETRIES:2}
+    # 503/429 do Gemini costumam exigir várias tentativas com intervalo (ver backoff no provider)
+    max-retries: ${AI_MAX_RETRIES:5}
 
 logging:
   level:
