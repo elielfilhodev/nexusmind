@@ -3,9 +3,17 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { apiPost, ApiError } from "@/shared/lib/api-client";
 import { useCurrentPatch, useDDragonChampions } from "@/shared/hooks/use-ddragon-catalog";
+import { useOpGgRankedMeta } from "@/shared/hooks/use-opgg-ranked";
+import {
+  type BanSuggestion,
+  type OpGgRankedChampion,
+  suggestBansByBanRate,
+  suggestTeamByLaneWinRate,
+} from "@/shared/lib/opgg-draft-suggestions";
+import { championIconUrl } from "@/shared/lib/ddragon";
 import { ChampionSlotPicker } from "@/features/champions/champion-slot-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -20,6 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { StructuredView } from "@/widgets/structured-view";
 
 const LANES = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
@@ -57,6 +72,10 @@ export function DraftAnalyzerPanel() {
   const champions = championsQuery.data?.champions ?? [];
   const cdnVersion = championsQuery.data?.cdnVersion ?? version ?? "";
 
+  const opggQuery = useOpGgRankedMeta();
+  const [bansOpen, setBansOpen] = useState(false);
+  const [banSuggestions, setBanSuggestions] = useState<BanSuggestion[]>([]);
+
   const mutation = useMutation({
     mutationFn: () =>
       apiPost<{ id: string; structured: unknown }>("/api/analysis/draft", {
@@ -85,6 +104,20 @@ export function DraftAnalyzerPanel() {
     onSuccess: () => toast.success("Relatório gerado"),
   });
 
+  const metaBusy = opggQuery.isLoading || opggQuery.isFetching;
+  const canSuggest = champions.length > 0 && !metaBusy && !opggQuery.isError && opggQuery.data?.data;
+
+  async function refreshMetaAndRun<T>(fn: (rows: OpGgRankedChampion[]) => T): Promise<T | undefined> {
+    const res = await opggQuery.refetch();
+    const rows = res.data?.data;
+    if (!rows?.length) {
+      toast.error("Meta ranked indisponível", {
+        description: "Não foi possível obter dados OP.GG. Tente de novo em instantes.",
+      });
+      return undefined;
+    }
+    return fn(rows);
+  }
 
   return (
     <div className="flex min-h-[70vh] gap-0 rounded-xl border border-border/80 bg-card/30 overflow-hidden">
@@ -133,7 +166,7 @@ export function DraftAnalyzerPanel() {
                 <CardContent className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Lado</Label>
-                    <Select value={side} onValueChange={(v: string) => v != null && setSide(v)}>
+                    <Select value={side} onValueChange={(v: string | null) => v != null && setSide(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -146,7 +179,7 @@ export function DraftAnalyzerPanel() {
                   </div>
                   <div className="space-y-2">
                     <Label>Contexto</Label>
-                    <Select value={contextType} onValueChange={(v: string) => v != null && setContextType(v)}>
+                    <Select value={contextType} onValueChange={(v: string | null) => v != null && setContextType(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -161,7 +194,7 @@ export function DraftAnalyzerPanel() {
                   </div>
                   <div className="space-y-2">
                     <Label>Foco</Label>
-                    <Select value={strategicFocus} onValueChange={(v: string) => v != null && setStrategicFocus(v)}>
+                    <Select value={strategicFocus} onValueChange={(v: string | null) => v != null && setStrategicFocus(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -192,7 +225,92 @@ export function DraftAnalyzerPanel() {
                 ) : championsQuery.isError ? (
                   <p className="text-sm text-destructive">Falha ao carregar Data Dragon.</p>
                 ) : (
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <>
+                    <Card className="border-primary/20 bg-muted/10">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Sugestões meta (OP.GG global)</CardTitle>
+                        <CardDescription>
+                          Win rate por rota e bans por taxa de ban — ranked, atualizado ao clicar (fonte OP.GG).
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={!canSuggest}
+                          onClick={async () => {
+                            await refreshMetaAndRun((rows) => {
+                              setAlly((prev) => suggestTeamByLaneWinRate(prev, prev, enemy, rows, champions));
+                              toast.success("Draft aliado sugerido", {
+                                description: "Slots vazios preenchidos pela maior WR na rota (dados globais).",
+                              });
+                            });
+                          }}
+                        >
+                          {metaBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1.5 size-3.5" />
+                          )}
+                          Sugerir aliados (WR)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={!canSuggest}
+                          onClick={async () => {
+                            await refreshMetaAndRun((rows) => {
+                              setEnemy((prev) => suggestTeamByLaneWinRate(prev, ally, prev, rows, champions));
+                              toast.success("Draft inimigo sugerido", {
+                                description: "Slots vazios preenchidos pela maior WR na rota (dados globais).",
+                              });
+                            });
+                          }}
+                        >
+                          {metaBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1.5 size-3.5" />
+                          )}
+                          Sugerir inimigos (WR)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!canSuggest}
+                          onClick={async () => {
+                            await refreshMetaAndRun((rows) => {
+                              const bans = suggestBansByBanRate(rows, champions, ally, enemy, 5);
+                              if (bans.length === 0) {
+                                toast.message("Sem sugestões de ban", {
+                                  description: "Todos os campeões com maior taxa de ban já estão no draft.",
+                                });
+                                return;
+                              }
+                              setBanSuggestions(bans);
+                              setBansOpen(true);
+                            });
+                          }}
+                        >
+                          {metaBusy ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-1.5 size-3.5" />
+                          )}
+                          Sugerir bans
+                        </Button>
+                        {opggQuery.isError ? (
+                          <span className="w-full text-xs text-destructive">
+                            Não foi possível carregar o meta OP.GG.
+                          </span>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
                     <Card>
                       <CardHeader>
                         <CardTitle>Time aliado</CardTitle>
@@ -231,9 +349,44 @@ export function DraftAnalyzerPanel() {
                         ))}
                       </CardContent>
                     </Card>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
+
+              <Dialog open={bansOpen} onOpenChange={setBansOpen}>
+                <DialogPopup className="max-w-md p-0">
+                  <DialogHeader>
+                    <DialogTitle>Sugestões de ban</DialogTitle>
+                    <DialogDescription>
+                      Ordenadas por taxa de ban global (OP.GG), excluindo campeões já escolhidos no draft.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ul className="max-h-72 space-y-2 overflow-y-auto px-4 pb-4">
+                    {banSuggestions.map((b) => (
+                      <li
+                        key={b.riotKey}
+                        className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/20 px-2 py-2"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={championIconUrl(cdnVersion, b.riotKey)}
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="size-10 shrink-0 rounded-md bg-muted object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{b.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Ban {(b.banRate * 100).toFixed(1)}% · WR {(b.winRate * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </DialogPopup>
+              </Dialog>
 
               <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} size="lg">
                 {mutation.isPending ? (
