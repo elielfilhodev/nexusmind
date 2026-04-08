@@ -13,6 +13,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -72,7 +73,25 @@ public class OpenAiCompatibleAiProvider implements AiProvider {
                         .body(body)
                         .retrieve()
                         .body(String.class);
-                return extractAssistantText(raw);
+                String text = extractAssistantText(raw);
+                if (text.isBlank() && raw != null && !raw.isBlank()) {
+                    log.warn(
+                            "Resposta IA 200 sem texto extraível (verifique modelo/corpo). Trecho: {}",
+                            raw.length() > 600 ? raw.substring(0, 600) + "…" : raw
+                    );
+                }
+                return text;
+            } catch (RestClientResponseException ex) {
+                String errBody = ex.getResponseBodyAsString();
+                log.warn(
+                        "Erro HTTP da API de IA {} — {}. Corpo: {}",
+                        ex.getStatusCode().value(),
+                        ex.getStatusText(),
+                        errBody != null && errBody.length() > 800 ? errBody.substring(0, 800) + "…" : errBody
+                );
+                if (attempts >= max) {
+                    return "";
+                }
             } catch (RestClientException ex) {
                 log.warn("Falha na chamada IA (tentativa {}/{}): {}", attempts, max, ex.getMessage());
                 if (attempts >= max) {
@@ -89,9 +108,24 @@ public class OpenAiCompatibleAiProvider implements AiProvider {
         }
         try {
             JsonNode root = objectMapper.readTree(rawResponse);
+            if (root.has("error")) {
+                JsonNode err = root.get("error");
+                log.warn(
+                        "API de IA retornou JSON de erro: {}",
+                        err.isObject() ? err.path("message").asText(err.toString()) : err.toString()
+                );
+                return "";
+            }
             JsonNode choices = root.path("choices");
             if (choices.isArray() && !choices.isEmpty()) {
-                return choices.get(0).path("message").path("content").asText("");
+                JsonNode msg = choices.get(0).path("message");
+                if (msg.hasNonNull("content")) {
+                    return msg.path("content").asText("");
+                }
+                // Alguns fluxos retornam tool_calls em vez de content
+                if (msg.has("tool_calls")) {
+                    log.warn("Resposta IA só continha tool_calls — modelo não devolveu texto.");
+                }
             }
         } catch (Exception e) {
             log.debug("Resposta IA não-JSON ou formato inesperado");
