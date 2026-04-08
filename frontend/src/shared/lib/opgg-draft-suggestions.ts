@@ -24,14 +24,25 @@ export type OpGgRankedResponse = { data: OpGgRankedChampion[] };
 export const LANES_ORDER = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
 export type DraftLane = (typeof LANES_ORDER)[number];
 
-/** Nome da rota na API OP.GG */
-const LANE_TO_OPGG: Record<DraftLane, string> = {
-  TOP: "TOP",
-  JUNGLE: "JUNGLE",
-  MID: "MIDDLE",
-  ADC: "BOTTOM",
-  SUPPORT: "UTILITY",
+/**
+ * Nomes usados pela OP.GG em {@code positions[].name} (ranked global).
+ * A API usa MID / ADC / SUPPORT — não MIDDLE / BOTTOM / UTILITY (nomes antigos/alternativos).
+ */
+export const OPGG_POSITION_NAMES_BY_DRAFT_LANE: Record<DraftLane, readonly string[]> = {
+  TOP: ["TOP"],
+  JUNGLE: ["JUNGLE"],
+  MID: ["MID", "MIDDLE"],
+  ADC: ["ADC", "BOTTOM"],
+  SUPPORT: ["SUPPORT", "UTILITY"],
 };
+
+function findPositionForDraftLane(
+  row: OpGgRankedChampion,
+  lane: DraftLane
+): (typeof row.positions)[0] | undefined {
+  const names = OPGG_POSITION_NAMES_BY_DRAFT_LANE[lane];
+  return row.positions?.find((p) => names.includes(p.name));
+}
 
 function usedRiotKeys(
   ally: Record<DraftLane, string>,
@@ -63,20 +74,19 @@ export function suggestTeamByLaneWinRate(
   champions: DDragonChampionRow[],
   opts?: { minRoleGames?: number }
 ): Record<DraftLane, string> {
-  const minG = opts?.minRoleGames ?? 80;
+  const minG = opts?.minRoleGames ?? 50;
   const byId = byNumericId(champions);
   const used = usedRiotKeys(ally, enemy);
   const next = { ...target };
 
   for (const lane of LANES_ORDER) {
     if (next[lane]) continue;
-    const opggLane = LANE_TO_OPGG[lane];
     let best: { wr: number; riotKey: string } | null = null;
 
     for (const row of meta) {
       const c = byId.get(String(row.id));
       if (!c || used.has(c.riotKey)) continue;
-      const pos = row.positions?.find((p) => p.name === opggLane);
+      const pos = findPositionForDraftLane(row, lane);
       if (!pos) continue;
       if (pos.stats.play < minG) continue;
       const wr = pos.stats.win_rate;

@@ -41,6 +41,12 @@ function laneTitle(lane: DraftLaneKey): string {
   return m[lane];
 }
 
+/** Título alinhado ao filtro ativo (evita “Meio” no título com Selva selecionada). */
+function modalHeading(slotLane: DraftLaneKey, laneTab: LaneFilterTab): string {
+  if (laneTab === "ALL") return `Campeão — ${laneTitle(slotLane)}`;
+  return `Campeão — ${laneTitle(laneTab)}`;
+}
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -106,13 +112,13 @@ export function ChampionPickModal({
       <DialogPopup className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 space-y-3 px-4 pb-3 pt-4">
           <div>
-            <DialogTitle>{title ?? `Campeão — ${laneTitle(slotLane)}`}</DialogTitle>
+            <DialogTitle>{title ?? modalHeading(slotLane, laneTab)}</DialogTitle>
             <DialogDescription>
-              Toque no ícone para selecionar. Filtros por rota (meta ranked global OP.GG).
+              Toque no ícone para selecionar. Com filtro por rota, só aparecem campeões com essa posição no meta OP.GG.
               {positionsQuery.isError ? (
                 <span className="text-amber-600 dark:text-amber-500">
                   {" "}
-                  Filtros de rota indisponíveis — mostrando todos.
+                  Meta indisponível — lista completa até carregar.
                 </span>
               ) : null}
             </DialogDescription>
