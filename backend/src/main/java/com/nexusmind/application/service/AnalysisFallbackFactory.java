@@ -58,33 +58,65 @@ public class AnalysisFallbackFactory {
         ObjectNode root = objectMapper.createObjectNode();
         root.putObject("meta").put("status", "FALLBACK").put("reason", reason);
         root.put("executiveSummary", "Análise heurística: configure provedor de IA para relatório completo.");
-        allyEnemyStub(root.putObject("allyComposition"));
-        allyEnemyStub(root.putObject("enemyComposition"));
-        root.putArray("laneByLane");
-        ObjectNode junglePathing = root.putObject("junglePathing");
-        junglePathing.putArray("suggested").add("path flexível conforme matchup de lanes");
-        junglePathing.put("crabPriority", "avalie mid prio e matchups de 2v2");
-        junglePathing.putArray("playableLanes").add("lanes com setup de CC ou push");
-        junglePathing.putArray("riskLanes").add("lanes sem visão / sem prio");
-        phaseStub(root.putObject("earlyGame"));
-        root.putObject("midGame").put("sideLane", "duo side com TP").put("objectives", "herald → torres").put("visionSetup", "pink em pixel brush");
-        root.putObject("lateGame").put("teamfightPattern", "front-to-back padrão").put("winConExecution", "isolar carry inimigo com pick");
-        root.put("objectiveControl", "Negocie drag com estado de sums e prio.");
-        root.put("vision", "Controle river antes de 2º drag.");
-        root.putArray("winConditions").add("Execução de engage").add("melhor scaling");
-        root.putArray("loseConditions").add("perder mapa cedo").add("erros de posicionamento");
-        root.put("contingency", "Turtle, waveclear, esperar item spikes.");
+
+        ObjectNode team = root.putObject("teamCompAnalysis");
+        team.putArray("alliedStrengths").add("Configure IA para síntese por composição.");
+        team.putArray("alliedWeaknesses");
+        team.putArray("enemyStrengths");
+        team.putArray("enemyWeaknesses");
+        team.putArray("winConditions").add("Execução de win conditions do draft — detalhar com IA.");
+        team.putArray("loseConditions").add("Erros macro e perda de objetivos — detalhar com IA.");
+
+        ObjectNode lanes = root.putObject("laneReports");
+        putStandardLane(lanes.putObject("top"));
+        putJungleLane(lanes.putObject("jungle"));
+        putStandardLane(lanes.putObject("mid"));
+        putStandardLane(lanes.putObject("adc"));
+        putSupportLane(lanes.putObject("support"));
+
+        ObjectNode macro = root.putObject("macroPlan");
+        macro.putArray("earlyGame").add("Visão river e prio de scuttle conforme matchups.");
+        macro.putArray("midGame").add("Side lane com TP e contest de Herald.");
+        macro.putArray("lateGame").add("Teamfight pelo padrão da composição.");
+        macro.putArray("objectiveControl").add("Negociar drag com estado de sums e prio de lanes.");
+        macro.putArray("visionSetup").add("Pixel e entradas de jungle antes de objetivos.");
+        macro.putArray("teamfightApproach").add("Front-to-back ou pick conforme draft.");
+        macro.putArray("sideLanePlan").add("Duo com pressão em uma lateral.");
+
+        ObjectNode adapt = root.putObject("adaptations");
+        adapt.putArray("ifLosingEarly").add("Farm seguro, visão defensiva, esperar spikes.");
+        adapt.putArray("ifWinningEarly").add("Converter lead em mapa e objetivos, não overstay.");
+        adapt.putArray("highRiskMistakesToAvoid").add("Overstay sem flash").add("fight sem prio de wave.");
         return root;
     }
 
-    private static void allyEnemyStub(ObjectNode n) {
-        n.putArray("strengths");
-        n.putArray("weaknesses");
-        n.put("damageProfile", "não calculado no fallback");
+    private static void putStandardLane(ObjectNode n) {
+        n.put("matchupOverview", "Configure IA para matchup específico.");
+        n.put("lanePlan", "Priorize CS e trades curtos com saída.");
+        n.put("tradingPattern", "Negocie só com vantagem clara de habilidade ou minion advantage.");
+        n.put("waveManagement", "Freeze perto do seu lado se vulnerável; slowpush antes de objetivos.");
+        n.put("wardingTips", "Trinket river e brush lateral conforme push.");
+        n.put("playFromAhead", "Congelar ou dive com jungler — valide visão.");
+        n.put("playFromBehind", "Sobreviver, perder menos CS que o oponente, escalar.");
     }
 
-    private static void phaseStub(ObjectNode n) {
-        n.putArray("priorities").add("visão river").add("estado de flash inimigo");
-        n.putArray("rotations").add("mid primeiro em scuttle");
+    private static void putJungleLane(ObjectNode n) {
+        n.put("pathingPlan", "Path flexível: avalie leash, matchup mid e prio de scuttle.");
+        n.put("gankWindows", "Após clear ou quando lane tiver setup de CC ou overextension.");
+        n.putArray("priorityLanes").add("Lanes com push ou CC de setup.");
+        n.putArray("riskLanes").add("Lanes sem visão ou sem prio.");
+        n.put("objectivePlan", "Crabs → drag/herald conforme prio e estado de HP/mana.");
+        n.put("playFromAhead", "Invade com prio de lanes e visão.");
+        n.put("playFromBehind", "Farm seguro, countergank e visão defensiva.");
+    }
+
+    private static void putSupportLane(ObjectNode n) {
+        n.put("matchupOverview", "Configure IA para matchup de bot.");
+        n.put("lanePlan", "Trade de nível 2/3 conforme engage do duo.");
+        n.put("tradingPattern", "Curto com foco no alvo correto (carry ou suporte).");
+        n.put("visionPlan", "Control wards em river brush e tri-brush conforme estado da wave.");
+        n.put("roamingPlan", "Roam após push ou recall sincronizado com jungle.");
+        n.put("playFromAhead", "Deep wards e dive com prio.");
+        n.put("playFromBehind", "Wards defensivos e peel no carry.");
     }
 }

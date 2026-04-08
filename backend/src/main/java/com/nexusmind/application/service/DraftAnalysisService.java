@@ -67,7 +67,7 @@ public class DraftAnalysisService {
         String userMessage = dataContext + "\n\n" + TacticPromptCatalog.draftJsonSchemaHint();
 
         String raw = aiProvider.complete(new AiCompletionRequest(
-                TacticPromptCatalog.systemAnalyst(),
+                TacticPromptCatalog.systemDraftAnalyst(),
                 userMessage,
                 true
         ));
