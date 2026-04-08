@@ -1,12 +1,12 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { apiPost, ApiError } from "@/shared/lib/api-client";
 import { useCurrentPatch, useDDragonChampions } from "@/shared/hooks/use-ddragon-catalog";
-import { ChampionPickSelect } from "@/features/champions/champion-pick-select";
+import { ChampionSlotPicker } from "@/features/champions/champion-slot-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { StructuredView } from "@/widgets/structured-view";
 
 const LANES = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
@@ -54,17 +53,9 @@ export function DraftAnalyzerPanel() {
   const patchQuery = useCurrentPatch();
   const version = patchQuery.data?.version;
   const championsQuery = useDDragonChampions(version);
-  const [champFilter, setChampFilter] = useState("");
 
   const champions = championsQuery.data?.champions ?? [];
   const cdnVersion = championsQuery.data?.cdnVersion ?? version ?? "";
-  const filteredChampions = useMemo(() => {
-    const s = champFilter.trim().toLowerCase();
-    if (!s) return champions;
-    return champions.filter(
-      (c) => c.name.toLowerCase().includes(s) || c.riotKey.toLowerCase().includes(s)
-    );
-  }, [champions, champFilter]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -142,7 +133,7 @@ export function DraftAnalyzerPanel() {
                 <CardContent className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label>Lado</Label>
-                    <Select value={side} onValueChange={(v) => v != null && setSide(v)}>
+                    <Select value={side} onValueChange={(v: string) => v != null && setSide(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -155,7 +146,7 @@ export function DraftAnalyzerPanel() {
                   </div>
                   <div className="space-y-2">
                     <Label>Contexto</Label>
-                    <Select value={contextType} onValueChange={(v) => v != null && setContextType(v)}>
+                    <Select value={contextType} onValueChange={(v: string) => v != null && setContextType(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -170,7 +161,7 @@ export function DraftAnalyzerPanel() {
                   </div>
                   <div className="space-y-2">
                     <Label>Foco</Label>
-                    <Select value={strategicFocus} onValueChange={(v) => v != null && setStrategicFocus(v)}>
+                    <Select value={strategicFocus} onValueChange={(v: string) => v != null && setStrategicFocus(v)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -196,14 +187,6 @@ export function DraftAnalyzerPanel() {
               </Card>
 
               <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Filtrar campeões (todas as rotações)</Label>
-                  <Input
-                    placeholder="Ex.: Aatrox, Jinx, Su…"
-                    value={champFilter}
-                    onChange={(e) => setChampFilter(e.target.value)}
-                  />
-                </div>
                 {!version || championsQuery.isLoading ? (
                   <p className="text-sm text-muted-foreground">Carregando campeões…</p>
                 ) : championsQuery.isError ? (
@@ -218,12 +201,12 @@ export function DraftAnalyzerPanel() {
                         {LANES.map((lane) => (
                           <div key={lane} className="grid grid-cols-[100px_1fr] items-start gap-2">
                             <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
-                            <ChampionPickSelect
+                            <ChampionSlotPicker
                               version={cdnVersion}
-                              champions={filteredChampions}
+                              champions={champions}
                               value={ally[lane]}
                               onChange={(v) => setAlly((a) => ({ ...a, [lane]: v }))}
-                              showSearch={false}
+                              slotLane={lane}
                             />
                           </div>
                         ))}
@@ -237,12 +220,12 @@ export function DraftAnalyzerPanel() {
                         {LANES.map((lane) => (
                           <div key={lane} className="grid grid-cols-[100px_1fr] items-start gap-2">
                             <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
-                            <ChampionPickSelect
+                            <ChampionSlotPicker
                               version={cdnVersion}
-                              champions={filteredChampions}
+                              champions={champions}
                               value={enemy[lane]}
                               onChange={(v) => setEnemy((a) => ({ ...a, [lane]: v }))}
-                              showSearch={false}
+                              slotLane={lane}
                             />
                           </div>
                         ))}
