@@ -8,10 +8,10 @@ import {
 
 export function useChampionPositions() {
   return useQuery({
-    queryKey: ["meraki", "champion-positions"],
+    queryKey: ["opgg", "champion-positions"],
     queryFn: fetchChampionPositionsMap,
-    staleTime: 7 * 24 * 60 * 60 * 1000,
-    gcTime: 8 * 24 * 60 * 60 * 1000,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
     retry: 1,
   });
 }

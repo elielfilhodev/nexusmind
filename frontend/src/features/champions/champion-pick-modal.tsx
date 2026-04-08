@@ -12,7 +12,6 @@ import {
 } from "@/shared/lib/champion-positions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogDescription,
@@ -85,7 +84,7 @@ export function ChampionPickModal({
         (c) => c.name.toLowerCase().includes(s) || c.riotKey.toLowerCase().includes(s)
       );
     }
-    return list.filter((c) => championVisibleForLaneFilter(c.riotKey, laneTab, positionsMap));
+    return list.filter((c) => championVisibleForLaneFilter(c.numericKey, laneTab, positionsMap));
   }, [champions, q, laneTab, positionsMap]);
 
   const selectedName = useMemo(() => {
@@ -104,12 +103,12 @@ export function ChampionPickModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup className="overflow-hidden p-0">
-        <DialogHeader className="shrink-0 space-y-3 pb-3">
+      <DialogPopup className="flex max-h-[min(90vh,760px)] flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 space-y-3 px-4 pb-3 pt-4">
           <div>
             <DialogTitle>{title ?? `Campeão — ${laneTitle(slotLane)}`}</DialogTitle>
             <DialogDescription>
-              Toque no ícone para selecionar. Filtros por rota (dados Meraki Analytics).
+              Toque no ícone para selecionar. Filtros por rota (meta ranked global OP.GG).
               {positionsQuery.isError ? (
                 <span className="text-amber-600 dark:text-amber-500">
                   {" "}
@@ -144,8 +143,8 @@ export function ChampionPickModal({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[min(58vh,560px)] px-3 pb-3">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-2 pb-2 pt-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 pb-2">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-2 pb-4 pt-1">
             {filtered.map((c) => {
               const active = value === c.riotKey;
               return (
@@ -179,7 +178,7 @@ export function ChampionPickModal({
               Nenhum campeão com esse filtro ou busca.
             </p>
           ) : null}
-        </ScrollArea>
+        </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/60 px-4 py-3">
           <p className="truncate text-xs text-muted-foreground">
