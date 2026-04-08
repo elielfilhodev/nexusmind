@@ -95,7 +95,7 @@ Tela dedicada em `/competitive/leaderboard` e perfis em `/competitive/player/{RE
 - `GET /api/players/{region}/{puuid}/matches?...` — filtros: `season`, `championId`, `queueId`, `outcome`
 - `GET /api/players/{region}/{puuid}/champions` | `/peak-ranks`
 - `GET /api/matches/{matchId}?region=&puuid=`
-- `POST /api/matches/{matchId}/ai-analysis?region=&puuid=`
+- `POST /api/matches/{matchId}/ai-analysis?region=&puuid=` — prompt de analista/coach em `MatchAnalysisAiPrompt.java` (JSON estruturado com rating, fases, build/runas/spells, macro, notas de coach).
 - `POST /api/players/{region}/{puuid}/ai-analysis`
 
 Documentação interativa: **Swagger** em `/swagger-ui/index.html`.

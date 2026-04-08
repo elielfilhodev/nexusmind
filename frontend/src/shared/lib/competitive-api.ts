@@ -188,16 +188,30 @@ export type MatchDetail = {
   enemyTeam: MatchParticipantDetail[];
 };
 
+export type PerformanceRating = {
+  score: number;
+  label: string;
+};
+
+/** Resposta alinhada ao prompt de analista/coach (análise de partida). */
 export type MatchAiAnalysis = {
   matchId: string;
   puuid: string;
   summary: string;
+  performanceRating: PerformanceRating;
   strengths: string[];
   mistakes: string[];
-  tips: string[];
-  playstyle: string;
-  tempo: string;
-  confidenceNote: string;
+  playstyleRead: string[];
+  lanePhaseAssessment: string;
+  midGameAssessment: string;
+  lateGameAssessment: string;
+  buildAssessment: string;
+  runeAssessment: string;
+  spellAssessment: string;
+  macroAssessment: string;
+  consistencyNotes: string[];
+  improvementActions: string[];
+  coachNotes: string[];
   model: string;
 };
 

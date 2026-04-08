@@ -535,24 +535,152 @@ function MatchHistorySection({
         </DialogPopup>
       </Dialog>
 
-      {lastAi ? (
-        <Card className="border-primary/25">
-          <CardHeader>
-            <CardTitle className="text-base">Última análise de partida</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <p>{lastAi.summary}</p>
-            <Separator />
-            <ul className="list-inside list-disc text-xs text-muted-foreground">
-              {lastAi.strengths.map((s) => (
+      {lastAi ? <MatchAiAnalysisCard analysis={lastAi} /> : null}
+    </div>
+  );
+}
+
+function MatchAiAnalysisCard({ analysis }: { analysis: MatchAiAnalysis }) {
+  const pr = analysis.performanceRating ?? { score: 0, label: "—" };
+  const hasPhase =
+    analysis.lanePhaseAssessment ||
+    analysis.midGameAssessment ||
+    analysis.lateGameAssessment;
+  return (
+    <Card className="border-primary/25 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+      <CardHeader className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CardTitle className="text-base">Análise da partida (IA)</CardTitle>
+          <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5 text-sm">
+            <span className="text-muted-foreground">Nota</span>
+            <span className="font-semibold tabular-nums">{pr.score}</span>
+            <span className="text-muted-foreground">·</span>
+            <Badge variant="secondary" className="font-normal">
+              {pr.label || "—"}
+            </Badge>
+          </div>
+        </div>
+        <CardDescription className="text-sm leading-relaxed text-foreground/90">{analysis.summary}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 text-sm">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-400/90">Pontos fortes</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+              {(analysis.strengths ?? []).map((s) => (
                 <li key={s}>{s}</li>
               ))}
             </ul>
-            <p className="text-xs text-muted-foreground">{lastAi.confidenceNote}</p>
-          </CardContent>
-        </Card>
-      ) : null}
-    </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-rose-400/90">Pontos a corrigir</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+              {(analysis.mistakes ?? []).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {(analysis.playstyleRead ?? []).length > 0 ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Leitura de estilo</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(analysis.playstyleRead ?? []).map((t) => (
+                <Badge key={t} variant="outline" className="font-normal">
+                  {t}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {hasPhase ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {analysis.lanePhaseAssessment ? (
+              <div className="rounded-lg border border-border/50 bg-muted/15 p-3">
+                <p className="text-xs font-semibold text-primary">Lane / early</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{analysis.lanePhaseAssessment}</p>
+              </div>
+            ) : null}
+            {analysis.midGameAssessment ? (
+              <div className="rounded-lg border border-border/50 bg-muted/15 p-3">
+                <p className="text-xs font-semibold text-primary">Mid game</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{analysis.midGameAssessment}</p>
+              </div>
+            ) : null}
+            {analysis.lateGameAssessment ? (
+              <div className="rounded-lg border border-border/50 bg-muted/15 p-3">
+                <p className="text-xs font-semibold text-primary">Late</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{analysis.lateGameAssessment}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="space-y-3 rounded-lg border border-border/40 bg-card/40 p-4">
+          {analysis.buildAssessment ? (
+            <p>
+              <span className="font-medium text-foreground">Build — </span>
+              <span className="text-muted-foreground">{analysis.buildAssessment}</span>
+            </p>
+          ) : null}
+          {analysis.runeAssessment ? (
+            <p>
+              <span className="font-medium text-foreground">Runas — </span>
+              <span className="text-muted-foreground">{analysis.runeAssessment}</span>
+            </p>
+          ) : null}
+          {analysis.spellAssessment ? (
+            <p>
+              <span className="font-medium text-foreground">Spells — </span>
+              <span className="text-muted-foreground">{analysis.spellAssessment}</span>
+            </p>
+          ) : null}
+          {analysis.macroAssessment ? (
+            <p>
+              <span className="font-medium text-foreground">Macro — </span>
+              <span className="text-muted-foreground">{analysis.macroAssessment}</span>
+            </p>
+          ) : null}
+        </div>
+
+        {(analysis.consistencyNotes ?? []).length > 0 ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Consistência / dados</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-muted-foreground">
+              {(analysis.consistencyNotes ?? []).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {(analysis.improvementActions ?? []).length > 0 ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ações de melhoria</p>
+            <ul className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
+              {(analysis.improvementActions ?? []).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {(analysis.coachNotes ?? []).length > 0 ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notas de coach</p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
+              {(analysis.coachNotes ?? []).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <p className="text-[10px] text-muted-foreground">Modelo: {analysis.model}</p>
+      </CardContent>
+    </Card>
   );
 }
 

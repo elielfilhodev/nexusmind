@@ -8,6 +8,7 @@ import com.nexusmind.application.ai.StructuredJsonExtractor;
 import com.nexusmind.application.dto.competitive.AiAnalysisDtos;
 import com.nexusmind.application.dto.competitive.MatchDtos;
 import com.nexusmind.application.dto.competitive.PlayerProfileDtos;
+import com.nexusmind.application.competitive.MatchAnalysisAiPrompt;
 import com.nexusmind.application.competitive.MatchParsingSupport;
 import com.nexusmind.domain.model.CompetitiveAiCacheEntity;
 import com.nexusmind.infrastructure.ai.AiProperties;
@@ -27,7 +28,8 @@ public class CompetitiveAiAnalysisService {
 
     private static final Logger log = LoggerFactory.getLogger(CompetitiveAiAnalysisService.class);
 
-    private static final String KIND_MATCH = "MATCH_ANALYSIS";
+    /** Versão do payload de análise de partida (bump ao mudar o schema do prompt). */
+    private static final String KIND_MATCH = "MATCH_ANALYSIS_V2";
     private static final String KIND_PROFILE = "PROFILE_ANALYSIS";
 
     private final AiProvider aiProvider;
@@ -70,18 +72,7 @@ public class CompetitiveAiAnalysisService {
             throw new IllegalArgumentException("Participante não encontrado na partida");
         }
         String user = buildMatchPrompt(sum, match);
-        String system = """
-                Você é analista competitivo de League of Legends. Responda em português do Brasil.
-                Produza JSON estrito com campos:
-                summary (string curta),
-                strengths (array de strings),
-                mistakes (array de strings),
-                tips (array de strings),
-                playstyle (uma palavra ou frase curta: agressivo, seguro, escalando, etc.),
-                tempo (early/mid/late conforme leitura),
-                confidenceNote (limitações dos dados).
-                Sem markdown, sem texto fora do JSON.""";
-        String raw = aiProvider.complete(new AiCompletionRequest(system, user, true));
+        String raw = aiProvider.complete(new AiCompletionRequest(MatchAnalysisAiPrompt.SYSTEM, user, true));
         Optional<JsonNode> parsed = jsonExtractor.extract(raw);
         AiAnalysisDtos.MatchAiAnalysisDto dto = parsed
                 .map(n -> mapMatch(n, matchId, puuid, aiProperties.model()))
@@ -165,18 +156,48 @@ public class CompetitiveAiAnalysisService {
     }
 
     private AiAnalysisDtos.MatchAiAnalysisDto mapMatch(JsonNode n, String matchId, String puuid, String model) {
+        AiAnalysisDtos.PerformanceRatingDto rating = performanceRating(n);
+        List<String> playstyleRead = strings(n, "playstyleRead");
+        if (playstyleRead.isEmpty() && n.has("playstyle")) {
+            String ps = text(n, "playstyle");
+            if (!ps.isBlank()) {
+                playstyleRead = List.of(ps);
+            }
+        }
+        List<String> improvement = strings(n, "improvementActions");
+        if (improvement.isEmpty()) {
+            improvement = strings(n, "tips");
+        }
         return new AiAnalysisDtos.MatchAiAnalysisDto(
                 matchId,
                 puuid,
                 text(n, "summary"),
+                rating,
                 strings(n, "strengths"),
                 strings(n, "mistakes"),
-                strings(n, "tips"),
-                text(n, "playstyle"),
-                text(n, "tempo"),
-                text(n, "confidenceNote"),
+                playstyleRead,
+                text(n, "lanePhaseAssessment"),
+                text(n, "midGameAssessment"),
+                text(n, "lateGameAssessment"),
+                text(n, "buildAssessment"),
+                text(n, "runeAssessment"),
+                text(n, "spellAssessment"),
+                text(n, "macroAssessment"),
+                strings(n, "consistencyNotes"),
+                improvement,
+                strings(n, "coachNotes"),
                 model
         );
+    }
+
+    private static AiAnalysisDtos.PerformanceRatingDto performanceRating(JsonNode n) {
+        JsonNode pr = n.path("performanceRating");
+        if (pr.isMissingNode() || !pr.isObject()) {
+            return new AiAnalysisDtos.PerformanceRatingDto(0, "");
+        }
+        int score = pr.path("score").asInt(0);
+        String label = text(pr, "label");
+        return new AiAnalysisDtos.PerformanceRatingDto(score, label);
     }
 
     private AiAnalysisDtos.ProfileAiAnalysisDto mapProfile(JsonNode n, String puuid, String model) {
@@ -214,12 +235,20 @@ public class CompetitiveAiAnalysisService {
                 matchId,
                 puuid,
                 "Análise indisponível — verifique AI_API_KEY ou tente novamente.",
+                new AiAnalysisDtos.PerformanceRatingDto(0, "Indisponível"),
                 List.of(),
                 List.of(),
                 List.of(),
-                "indefinido",
-                "indefinido",
-                "Sem resposta estruturada da IA.",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                List.of("Sem resposta estruturada da IA ou formato JSON incompatível."),
+                List.of(),
+                List.of(),
                 aiProperties.model()
         );
     }
