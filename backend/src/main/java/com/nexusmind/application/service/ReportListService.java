@@ -21,17 +21,19 @@ public class ReportListService {
                         SELECT 'CASUAL'::varchar AS kind, id, created_at,
                                LEFT(COALESCE(summary_text, ''), 500) AS summary
                         FROM casual_analysis_reports
+                        WHERE client_session_id = ?
                         UNION ALL
                         SELECT 'DRAFT'::varchar, id, created_at,
                                LEFT(COALESCE(summary_text, ''), 500)
                         FROM draft_analysis_reports
+                        WHERE client_session_id = ?
                     ) u
                     """;
 
     private static final String COUNT_TOTAL =
             """
-                    SELECT (SELECT COUNT(*) FROM casual_analysis_reports)
-                         + (SELECT COUNT(*) FROM draft_analysis_reports)
+                    SELECT (SELECT COUNT(*) FROM casual_analysis_reports WHERE client_session_id = ?)
+                         + (SELECT COUNT(*) FROM draft_analysis_reports WHERE client_session_id = ?)
                     """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -40,8 +42,8 @@ public class ReportListService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public Page<ReportSummaryDto> list(Pageable pageable) {
-        Long total = jdbcTemplate.queryForObject(COUNT_TOTAL, Long.class);
+    public Page<ReportSummaryDto> list(Pageable pageable, String clientSessionId) {
+        Long total = jdbcTemplate.queryForObject(COUNT_TOTAL, Long.class, clientSessionId, clientSessionId);
         if (total == null) {
             total = 0L;
         }
@@ -54,6 +56,8 @@ public class ReportListService {
                         toInstant(rs.getTimestamp("created_at")),
                         rs.getString("summary")
                 ),
+                clientSessionId,
+                clientSessionId,
                 pageable.getPageSize(),
                 pageable.getOffset()
         );

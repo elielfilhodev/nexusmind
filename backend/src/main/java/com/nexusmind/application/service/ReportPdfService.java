@@ -17,8 +17,8 @@ public class ReportPdfService {
         this.pdfRenderer = pdfRenderer;
     }
 
-    public byte[] buildPdf(String kind, UUID id) {
-        JsonNode payload = reportDetailService.structuredPayload(kind, id);
+    public byte[] buildPdf(String kind, UUID id, String clientSessionId) {
+        JsonNode payload = reportDetailService.structuredPayload(kind, id, clientSessionId);
         String title = "NexusMind — " + kind + " — " + id;
         return pdfRenderer.render(title, payload);
     }

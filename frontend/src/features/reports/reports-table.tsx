@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { apiGet, ApiError } from "@/shared/lib/api-client";
+import { getClientSessionId } from "@/shared/lib/client-session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,12 +24,18 @@ type PageReports = {
 };
 
 export function ReportsTable() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    setSessionId(getClientSessionId());
+  }, []);
+
   const q = useQuery({
-    queryKey: ["reports"],
+    queryKey: ["reports", sessionId],
     queryFn: () => apiGet<PageReports>("/api/reports?page=0&size=30"),
+    enabled: sessionId != null,
   });
 
-  if (q.isLoading) {
+  if (sessionId == null || q.isLoading) {
     return (
       <div className="space-y-2">
         <Skeleton className="h-12 w-full" />

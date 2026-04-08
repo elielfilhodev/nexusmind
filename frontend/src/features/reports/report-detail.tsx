@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Download } from "lucide-react";
-import { apiGet, ApiError, pdfUrl } from "@/shared/lib/api-client";
+import { apiGet, ApiError, downloadReportPdf } from "@/shared/lib/api-client";
+import { getClientSessionId } from "@/shared/lib/client-session";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,12 +20,18 @@ type Detail = {
 };
 
 export function ReportDetail({ id, kind }: { id: string; kind: "CASUAL" | "DRAFT" }) {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  useEffect(() => {
+    setSessionId(getClientSessionId());
+  }, []);
+
   const q = useQuery({
-    queryKey: ["report", id, kind],
+    queryKey: ["report", id, kind, sessionId],
     queryFn: () => apiGet<Detail>(`/api/reports/${id}?kind=${kind}`),
+    enabled: sessionId != null,
   });
 
-  if (q.isLoading) {
+  if (sessionId == null || q.isLoading) {
     return <Skeleton className="min-h-[400px] w-full" />;
   }
   if (q.isError) {
@@ -40,18 +48,20 @@ export function ReportDetail({ id, kind }: { id: string; kind: "CASUAL" | "DRAFT
     );
   }
 
-  const pdf = pdfUrl(id, kind);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/reports" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           ← Relatórios
         </Link>
-        <a href={pdf} target="_blank" rel="noreferrer" className={cn(buttonVariants({ size: "sm" }), "inline-flex items-center")}>
+        <button
+          type="button"
+          className={cn(buttonVariants({ size: "sm" }), "inline-flex items-center")}
+          onClick={() => void downloadReportPdf(id, kind)}
+        >
           <Download className="mr-2 size-4" />
           Exportar PDF
-        </a>
+        </button>
       </div>
       <StructuredView data={q.data?.structured} title={`Relatório ${kind}`} />
     </div>

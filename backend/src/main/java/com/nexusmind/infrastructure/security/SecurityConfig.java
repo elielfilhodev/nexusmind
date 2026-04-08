@@ -40,7 +40,13 @@ public class SecurityConfig {
                 .collect(Collectors.toList());
         cfg.setAllowedOrigins(origins.isEmpty() ? List.of("http://localhost:3000") : origins);
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Request-Id"));
+        cfg.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Request-Id",
+                "X-Client-Session-Id"
+        ));
         cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);

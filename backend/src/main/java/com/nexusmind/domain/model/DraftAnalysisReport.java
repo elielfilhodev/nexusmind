@@ -44,6 +44,9 @@ public class DraftAnalysisReport {
     @Column(name = "summary_text", columnDefinition = "TEXT")
     private String summaryText;
 
+    @Column(name = "client_session_id", nullable = false, length = 64)
+    private String clientSessionId = "";
+
     public UUID getId() {
         return id;
     }
@@ -98,5 +101,13 @@ public class DraftAnalysisReport {
 
     public void setSummaryText(String summaryText) {
         this.summaryText = summaryText;
+    }
+
+    public String getClientSessionId() {
+        return clientSessionId;
+    }
+
+    public void setClientSessionId(String clientSessionId) {
+        this.clientSessionId = clientSessionId != null ? clientSessionId : "";
     }
 }

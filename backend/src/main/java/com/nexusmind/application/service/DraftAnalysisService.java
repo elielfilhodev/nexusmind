@@ -46,7 +46,7 @@ public class DraftAnalysisService {
     }
 
     @Transactional
-    public DraftAnalysisReport analyze(DraftAnalysisRequestDto req) {
+    public DraftAnalysisReport analyze(DraftAnalysisRequestDto req, String clientSessionId) {
         ObjectNode draftPayload = objectMapper.createObjectNode();
         draftPayload.put("side", req.side() != null ? req.side() : "UNKNOWN");
         draftPayload.set("ally", toTeam(req.ally()));
@@ -84,6 +84,7 @@ public class DraftAnalysisService {
         }
 
         DraftAnalysisReport report = new DraftAnalysisReport();
+        report.setClientSessionId(clientSessionId);
         report.setSide(req.side());
         report.setContextType(req.contextType());
         report.setStrategicFocus(req.strategicFocus());

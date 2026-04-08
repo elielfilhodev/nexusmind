@@ -46,7 +46,7 @@ public class CasualAnalysisService {
     }
 
     @Transactional
-    public CasualAnalysisReport analyze(CasualAnalysisRequestDto req) {
+    public CasualAnalysisReport analyze(CasualAnalysisRequestDto req, String clientSessionId) {
         String dataContext = """
                 Patch (campeões seed): %s
                 Elo: %s | Lane: %s | Estilo: %s | Região: %s | Favorito: %s
@@ -86,6 +86,7 @@ public class CasualAnalysisService {
         }
 
         CasualAnalysisReport report = new CasualAnalysisReport();
+        report.setClientSessionId(clientSessionId);
         report.setElo(req.elo());
         report.setLane(req.lane());
         report.setPlaystyle(req.playstyle());

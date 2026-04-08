@@ -32,27 +32,42 @@ public class ReportDetailService {
         this.reportSectionRepository = reportSectionRepository;
     }
 
-    public CasualAnalysisReport getCasual(UUID id) {
-        return casualAnalysisReportRepository.findById(id)
+    public CasualAnalysisReport getCasual(UUID id, String clientSessionId) {
+        CasualAnalysisReport r = casualAnalysisReportRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        assertSameSession(r.getClientSessionId(), clientSessionId);
+        return r;
     }
 
-    public DraftAnalysisReport getDraft(UUID id) {
-        return draftAnalysisReportRepository.findById(id)
+    public DraftAnalysisReport getDraft(UUID id, String clientSessionId) {
+        DraftAnalysisReport r = draftAnalysisReportRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        assertSameSession(r.getClientSessionId(), clientSessionId);
+        return r;
     }
 
-    public List<ReportSection> sections(ReportKind kind, UUID id) {
+    public List<ReportSection> sections(ReportKind kind, UUID id, String clientSessionId) {
+        if (kind == ReportKind.CASUAL) {
+            getCasual(id, clientSessionId);
+        } else {
+            getDraft(id, clientSessionId);
+        }
         return reportSectionRepository.findByReportKindAndReportIdOrderBySortOrderAsc(kind, id);
     }
 
-    public JsonNode structuredPayload(String kind, UUID id) {
+    public JsonNode structuredPayload(String kind, UUID id, String clientSessionId) {
         if ("CASUAL".equalsIgnoreCase(kind)) {
-            return getCasual(id).getStructuredPayload();
+            return getCasual(id, clientSessionId).getStructuredPayload();
         }
         if ("DRAFT".equalsIgnoreCase(kind)) {
-            return getDraft(id).getStructuredPayload();
+            return getDraft(id, clientSessionId).getStructuredPayload();
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "kind inválido");
+    }
+
+    private static void assertSameSession(String stored, String clientSessionId) {
+        if (clientSessionId == null || !clientSessionId.equals(stored)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
     }
 }

@@ -15,8 +15,10 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import com.nexusmind.web.ClientSessionSupport;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,29 +47,36 @@ public class ReportController {
     }
 
     @GetMapping
-    public Page<ReportSummaryDto> list(@PageableDefault(size = 20) Pageable pageable) {
-        return reportListService.list(pageable);
+    public Page<ReportSummaryDto> list(
+            @PageableDefault(size = 20) Pageable pageable,
+            @RequestHeader(ClientSessionSupport.HEADER_NAME) String clientSessionRaw
+    ) {
+        String sessionId = ClientSessionSupport.requireValid(clientSessionRaw);
+        return reportListService.list(pageable, sessionId);
     }
 
     @GetMapping("/{id}")
     public Map<String, Object> detail(
             @PathVariable UUID id,
-            @RequestParam("kind") String kind
+            @RequestParam("kind") String kind,
+            @RequestHeader(ClientSessionSupport.HEADER_NAME) String clientSessionRaw
     ) {
-        JsonNode structured = reportDetailService.structuredPayload(kind, id);
+        String sessionId = ClientSessionSupport.requireValid(clientSessionRaw);
+        JsonNode structured = reportDetailService.structuredPayload(kind, id, sessionId);
         List<ReportSection> sections = reportDetailService.sections(
                 "CASUAL".equalsIgnoreCase(kind) ? ReportKind.CASUAL : ReportKind.DRAFT,
-                id
+                id,
+                sessionId
         );
         Map<String, Object> meta = new LinkedHashMap<>();
         if ("CASUAL".equalsIgnoreCase(kind)) {
-            CasualAnalysisReport r = reportDetailService.getCasual(id);
+            CasualAnalysisReport r = reportDetailService.getCasual(id, sessionId);
             meta.put("elo", r.getElo());
             meta.put("lane", r.getLane());
             meta.put("playstyle", r.getPlaystyle());
             meta.put("createdAt", r.getCreatedAt().toString());
         } else {
-            DraftAnalysisReport r = reportDetailService.getDraft(id);
+            DraftAnalysisReport r = reportDetailService.getDraft(id, sessionId);
             meta.put("side", r.getSide());
             meta.put("contextType", r.getContextType());
             meta.put("createdAt", r.getCreatedAt().toString());
@@ -88,9 +97,11 @@ public class ReportController {
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> pdf(
             @PathVariable UUID id,
-            @RequestParam("kind") String kind
+            @RequestParam("kind") String kind,
+            @RequestHeader(ClientSessionSupport.HEADER_NAME) String clientSessionRaw
     ) {
-        byte[] bytes = reportPdfService.buildPdf(kind, id);
+        String sessionId = ClientSessionSupport.requireValid(clientSessionRaw);
+        byte[] bytes = reportPdfService.buildPdf(kind, id, sessionId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"nexusmind-" + kind + "-" + id + ".pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)

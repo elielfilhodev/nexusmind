@@ -5,8 +5,10 @@ import com.nexusmind.application.dto.CasualAnalysisRequestDto;
 import com.nexusmind.application.service.CasualAnalysisService;
 import com.nexusmind.domain.model.CasualAnalysisReport;
 import jakarta.validation.Valid;
+import com.nexusmind.web.ClientSessionSupport;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,8 +27,12 @@ public class CasualAnalysisController {
     }
 
     @PostMapping("/casual")
-    public Map<String, Object> casual(@Valid @RequestBody CasualAnalysisRequestDto body) {
-        CasualAnalysisReport r = casualAnalysisService.analyze(body);
+    public Map<String, Object> casual(
+            @Valid @RequestBody CasualAnalysisRequestDto body,
+            @RequestHeader(ClientSessionSupport.HEADER_NAME) String clientSessionRaw
+    ) {
+        String sessionId = ClientSessionSupport.requireValid(clientSessionRaw);
+        CasualAnalysisReport r = casualAnalysisService.analyze(body, sessionId);
         return toResponse(r.getId(), r.getStructuredPayload(), r.getSummaryText());
     }
 

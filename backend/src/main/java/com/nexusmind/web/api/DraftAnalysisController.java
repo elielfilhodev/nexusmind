@@ -5,8 +5,10 @@ import com.nexusmind.application.dto.DraftAnalysisRequestDto;
 import com.nexusmind.application.service.DraftAnalysisService;
 import com.nexusmind.domain.model.DraftAnalysisReport;
 import jakarta.validation.Valid;
+import com.nexusmind.web.ClientSessionSupport;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,8 +27,12 @@ public class DraftAnalysisController {
     }
 
     @PostMapping("/draft")
-    public Map<String, Object> draft(@Valid @RequestBody DraftAnalysisRequestDto body) {
-        DraftAnalysisReport r = draftAnalysisService.analyze(body);
+    public Map<String, Object> draft(
+            @Valid @RequestBody DraftAnalysisRequestDto body,
+            @RequestHeader(ClientSessionSupport.HEADER_NAME) String clientSessionRaw
+    ) {
+        String sessionId = ClientSessionSupport.requireValid(clientSessionRaw);
+        DraftAnalysisReport r = draftAnalysisService.analyze(body, sessionId);
         return toResponse(r.getId(), r.getStructuredPayload(), r.getSummaryText());
     }
 
