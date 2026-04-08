@@ -1,12 +1,12 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { apiGet, apiPost, ApiError } from "@/shared/lib/api-client";
+import { apiPost, ApiError } from "@/shared/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StructuredView } from "@/widgets/structured-view";
+import { useCurrentPatch, useDDragonChampions } from "@/shared/hooks/use-ddragon-catalog";
+import { ChampionPickSelect } from "@/features/champions/champion-pick-select";
 
 const schema = z.object({
   elo: z.string().min(1, "Informe o elo"),
@@ -53,13 +55,10 @@ const playstyles = [
   { v: "SPLITPUSH", l: "Split push" },
 ];
 
-type Champion = { riotKey: string; name: string };
-
 export function CasualAnalysisPanel() {
-  const championsQuery = useQuery({
-    queryKey: ["champions"],
-    queryFn: () => apiGet<Champion[]>("/api/champions"),
-  });
+  const patchQuery = useCurrentPatch();
+  const version = patchQuery.data?.version;
+  const championsQuery = useDDragonChampions(version);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -93,7 +92,10 @@ export function CasualAnalysisPanel() {
       <Card className="border-border/80">
         <CardHeader>
           <CardTitle>Parâmetros</CardTitle>
-          <CardDescription>Informe seu contexto de solo queue — a IA combina com o catálogo do patch.</CardDescription>
+          <CardDescription>
+            Informe seu contexto de solo queue — a IA usa o catálogo completo de campeões do Data Dragon (patch{" "}
+            {version ? <span className="font-mono text-foreground">{version}</span> : "…"}).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -160,28 +162,20 @@ export function CasualAnalysisPanel() {
             </div>
             <div className="space-y-2">
               <Label>Campeão favorito (opcional)</Label>
-              {championsQuery.isLoading ? (
-                <Skeleton className="h-10 w-full" />
+              {championsQuery.isLoading || !version ? (
+                <Skeleton className="h-24 w-full" />
+              ) : championsQuery.isError ? (
+                <p className="text-sm text-destructive">Não foi possível carregar campeões do Data Dragon.</p>
               ) : (
-                <Select
-                  value={form.watch("favoriteChampionKey") || "__none__"}
-                  onValueChange={(v) => {
-                    if (!v) return;
-                    form.setValue("favoriteChampionKey", v === "__none__" ? "" : v);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Nenhum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum</SelectItem>
-                    {(championsQuery.data ?? []).map((c) => (
-                      <SelectItem key={c.riotKey} value={c.riotKey}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ChampionPickSelect
+                  version={championsQuery.data?.cdnVersion ?? version}
+                  champions={championsQuery.data?.champions ?? []}
+                  value={form.watch("favoriteChampionKey") ?? ""}
+                  onChange={(v) => form.setValue("favoriteChampionKey", v)}
+                  showSearch
+                  placeholder="Nenhum"
+                  emptyValue="__none__"
+                />
               )}
             </div>
             <Button type="submit" className="w-full" disabled={mutation.isPending}>

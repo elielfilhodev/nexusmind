@@ -7,6 +7,7 @@ const links = [
   { href: "/casual", label: "Solo Queue" },
   { href: "/professional", label: "Draft Pro" },
   { href: "/reports", label: "Relatórios" },
+  { href: "/items", label: "Itens" },
   { href: "/runes", label: "Runas" },
 ];
 

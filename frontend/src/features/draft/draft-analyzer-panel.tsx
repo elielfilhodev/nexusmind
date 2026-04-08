@@ -1,10 +1,12 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { apiGet, apiPost, ApiError } from "@/shared/lib/api-client";
+import { apiPost, ApiError } from "@/shared/lib/api-client";
+import { useCurrentPatch, useDDragonChampions } from "@/shared/hooks/use-ddragon-catalog";
+import { ChampionPickSelect } from "@/features/champions/champion-pick-select";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,43 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { StructuredView } from "@/widgets/structured-view";
 
-type Champion = { riotKey: string; name: string };
-
 const LANES = ["TOP", "JUNGLE", "MID", "ADC", "SUPPORT"] as const;
-
-function ChampionPickSelect({
-  champions,
-  value,
-  onChange,
-}: {
-  champions: Champion[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Select
-      value={value || "__empty__"}
-      onValueChange={(v) => {
-        if (v == null) return;
-        onChange(v === "__empty__" ? "" : v);
-      }}
-    >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="—" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__empty__">—</SelectItem>
-        {champions.map((c) => (
-          <SelectItem key={c.riotKey} value={c.riotKey}>
-            {c.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
 
 const NAV = [
   { id: "summary", label: "Resumo" },
@@ -82,12 +51,20 @@ export function DraftAnalyzerPanel() {
     SUPPORT: "",
   });
 
-  const championsQuery = useQuery({
-    queryKey: ["champions"],
-    queryFn: () => apiGet<Champion[]>("/api/champions"),
-  });
+  const patchQuery = useCurrentPatch();
+  const version = patchQuery.data?.version;
+  const championsQuery = useDDragonChampions(version);
+  const [champFilter, setChampFilter] = useState("");
 
-  const champions = championsQuery.data ?? [];
+  const champions = championsQuery.data?.champions ?? [];
+  const cdnVersion = championsQuery.data?.cdnVersion ?? version ?? "";
+  const filteredChampions = useMemo(() => {
+    const s = champFilter.trim().toLowerCase();
+    if (!s) return champions;
+    return champions.filter(
+      (c) => c.name.toLowerCase().includes(s) || c.riotKey.toLowerCase().includes(s)
+    );
+  }, [champions, champFilter]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -151,7 +128,8 @@ export function DraftAnalyzerPanel() {
             <section id="summary">
               <h2 className="text-2xl font-semibold tracking-tight">Draft Analyzer</h2>
               <p className="mt-2 max-w-2xl text-muted-foreground">
-                Composições, matchups sintéticos e plano por fase. Integração IA com JSON estruturado; fallback heurístico sem API key.
+                Composições, matchups sintéticos e plano por fase. Lista de campeões e ícones via Data Dragon (patch{" "}
+                {version ? <span className="font-mono text-foreground">{version}</span> : "…"}). IA com JSON estruturado.
               </p>
             </section>
 
@@ -217,41 +195,61 @@ export function DraftAnalyzerPanel() {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Time aliado</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {LANES.map((lane) => (
-                      <div key={lane} className="grid grid-cols-[100px_1fr] items-center gap-2">
-                        <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
-                        <ChampionPickSelect
-                          champions={champions}
-                          value={ally[lane]}
-                          onChange={(v) => setAlly((a) => ({ ...a, [lane]: v }))}
-                        />
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Time inimigo</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {LANES.map((lane) => (
-                      <div key={lane} className="grid grid-cols-[100px_1fr] items-center gap-2">
-                        <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
-                        <ChampionPickSelect
-                          champions={champions}
-                          value={enemy[lane]}
-                          onChange={(v) => setEnemy((a) => ({ ...a, [lane]: v }))}
-                        />
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Filtrar campeões (todas as rotações)</Label>
+                  <Input
+                    placeholder="Ex.: Aatrox, Jinx, Su…"
+                    value={champFilter}
+                    onChange={(e) => setChampFilter(e.target.value)}
+                  />
+                </div>
+                {!version || championsQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Carregando campeões…</p>
+                ) : championsQuery.isError ? (
+                  <p className="text-sm text-destructive">Falha ao carregar Data Dragon.</p>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Time aliado</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {LANES.map((lane) => (
+                          <div key={lane} className="grid grid-cols-[100px_1fr] items-start gap-2">
+                            <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
+                            <ChampionPickSelect
+                              version={cdnVersion}
+                              champions={filteredChampions}
+                              value={ally[lane]}
+                              onChange={(v) => setAlly((a) => ({ ...a, [lane]: v }))}
+                              showSearch={false}
+                            />
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Time inimigo</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {LANES.map((lane) => (
+                          <div key={lane} className="grid grid-cols-[100px_1fr] items-start gap-2">
+                            <Label className="text-xs uppercase text-muted-foreground">{lane}</Label>
+                            <ChampionPickSelect
+                              version={cdnVersion}
+                              champions={filteredChampions}
+                              value={enemy[lane]}
+                              onChange={(v) => setEnemy((a) => ({ ...a, [lane]: v }))}
+                              showSearch={false}
+                            />
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </div>
 
               <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} size="lg">

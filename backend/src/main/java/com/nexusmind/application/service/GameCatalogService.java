@@ -6,6 +6,7 @@ import com.nexusmind.application.dto.PatchVersionDto;
 import com.nexusmind.application.dto.RuneTreeDto;
 import com.nexusmind.application.dto.SummonerSpellDto;
 import com.nexusmind.domain.model.PatchVersion;
+import com.nexusmind.infrastructure.datadragon.DataDragonRemoteCatalog;
 import com.nexusmind.infrastructure.persistence.ChampionRepository;
 import com.nexusmind.infrastructure.persistence.GameItemRepository;
 import com.nexusmind.infrastructure.persistence.PatchVersionRepository;
@@ -25,19 +26,22 @@ public class GameCatalogService {
     private final GameItemRepository gameItemRepository;
     private final RuneTreeRepository runeTreeRepository;
     private final SummonerSpellRepository summonerSpellRepository;
+    private final DataDragonRemoteCatalog dataDragonRemoteCatalog;
 
     public GameCatalogService(
             PatchVersionRepository patchVersionRepository,
             ChampionRepository championRepository,
             GameItemRepository gameItemRepository,
             RuneTreeRepository runeTreeRepository,
-            SummonerSpellRepository summonerSpellRepository
+            SummonerSpellRepository summonerSpellRepository,
+            DataDragonRemoteCatalog dataDragonRemoteCatalog
     ) {
         this.patchVersionRepository = patchVersionRepository;
         this.championRepository = championRepository;
         this.gameItemRepository = gameItemRepository;
         this.runeTreeRepository = runeTreeRepository;
         this.summonerSpellRepository = summonerSpellRepository;
+        this.dataDragonRemoteCatalog = dataDragonRemoteCatalog;
     }
 
     public PatchVersionDto getCurrentPatch() {
@@ -75,10 +79,12 @@ public class GameCatalogService {
     }
 
     public String buildChampionContextSnippet() {
-        return listChampionsForCurrentPatch().stream()
-                .map(c -> c.riotKey() + ":" + c.name())
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("(sem campeões seed — ingestão Data Dragon pendente)");
+        PatchVersion p = requireCurrentPatch();
+        return dataDragonRemoteCatalog.getChampionSnippet(p.getVersion())
+                .orElseGet(() -> listChampionsForCurrentPatch().stream()
+                        .map(c -> c.riotKey() + ":" + c.name())
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("(sem catálogo de campeões — verifique patch e Data Dragon)"));
     }
 
     private PatchVersion requireCurrentPatch() {
